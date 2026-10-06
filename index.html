@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เกมวัดระดับ Skibidi และความปั่นระดับเทพ 30 ข้อ</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Tahoma', sans-serif; }
+    body { background: #121212; color: #fff; text-align: center; margin: 0; padding: 20px; }
+    .container { max-width: 650px; margin: 20px auto; background: #1e1e1e; padding: 25px; border-radius: 15px; border: 3px solid #ff0055; box-shadow: 0 0 25px rgba(255,0,85,0.5); }
+    h1 { color: #ff0055; text-shadow: 0 0 10px #ff0055; font-size: 26px; margin-bottom: 5px; }
+    .progress { color: #00ffcc; font-size: 16px; margin-bottom: 15px; font-weight: bold; }
+    .btn-choice { display: block; width: 100%; margin: 10px 0; padding: 14px; background: #2d2d2d; color: white; border: 2px solid #444; border-radius: 10px; font-size: 17px; cursor: pointer; transition: 0.2s; text-align: left; }
+    .btn-choice:hover { background: #ff0055; color: white; font-weight: bold; border-color: #ff0055; transform: scale(1.01); }
+    
+    /* Overlay วิดีโอ จั๊มสแกร์ */
+    #jumpscare, #fredbear-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; display: none; justify-content: center; align-items: center; z-index: 9999; }
+    #foxy-video, #fredbear-video { width: 100vw; height: 100vh; object-fit: cover; }
+    
+    /* Overlay ป๊อปอัพ ตอนตอบผิด */
+    #wrong-popup { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10000; }
+    #wrong-popup h2 { color: #ff0055; font-size: 40px; margin-bottom: 10px; text-shadow: 0 0 15px #ff0055; }
+    #wrong-popup button { padding: 15px 30px; font-size: 20px; background: #ff0055; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    #wrong-popup button:hover { background: #ff3300; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚽 เกมวัดระดับ Skibidi & ความปั่น (30 ข้อ) 🚽</h1>
+    <div class="progress" id="progress-text">ข้อที่ 1 / 30</div>
+    
+    <!-- พื้นที่สำหรับใส่คลิป sakadung.mp4 ในข้อ 7 -->
+    <div id="media-box"></div>
+
+    <div id="quiz-box">
+      <h2 id="question-text" style="color: #ffcc00; font-size: 20px;">คำถามจะขึ้นตรงนี้</h2>
+      <div id="choices-box"></div>
+    </div>
+  </div>
+
+  <!-- Jumpscare Foxy -->
+  <div id="jumpscare">
+    <video id="foxy-video" src="foxy.mp4" playsinline></video>
+  </div>
+
+  <!-- ป๊อปอัพแจ้งเตือน ตอบผิด -->
+  <div id="wrong-popup">
+    <h2>❌ ตอบผิด! ❌</h2>
+    <p style="font-size: 22px; color: #fff; margin-bottom: 20px;">โดน Foxy หลอนไปที! ไปตอบใหม่ดิมึง 555+</p>
+    <button onclick="closeWrongPopup()">ตอบใหม่อีกรอบ</button>
+  </div>
+
+  <!-- Jumpscare Fredbear ตอนจบ -->
+  <div id="fredbear-screen">
+    <video id="fredbear-video" src="Fredbear.mp4" playsinline></video>
+  </div>
+
+  <script>
+    const questions = [
+      {
+        q: "ข้อที่ 1: ใครกากที่สุด?",
+        c: ["1. จูกาก", "2. พี่โรกาก", "3. ข้อ 2", "4. ข้อ 3"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 2: ใครเทพที่สุด?",
+        c: ["1. จู", "2. พี่โร", "3. ข้อ 2", "4. ข้อ 3"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 3: ใครโง่ที่สุด?",
+        c: ["1. จู", "2. จู", "3. จู", "4. จู"],
+        ans: [0, 1, 2, 3]
+      },
+      {
+        q: "ข้อที่ 4: ข้อไหนผิด?",
+        c: ["1. เกม Roblox เป็นเกมเลโก้", "2. พี่โรเทพ", "3. ก-ฮ มี 2 ตัวอักษร เพราะมี ก กับ ฮ", "4. จูเทพ"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 5: ข้อไหนถูก?",
+        c: ["1. จูกาก", "2. จูกากมาก", "3. จูโคตรกาก", "4. จูโคตรพ่อโคตรแม่กาก"],
+        ans: [0, 1, 2, 3],
+        jumpscare: true
+      },
+      {
+        q: "ข้อที่ 6: เสียงเพลง Skibidi Toilet อันโด่งดัง ดัดแปลงมาจากเพลงของใคร?",
+        c: ["1. BLACKPINK - Kill This Love", "2. คาราบาว - เมดอินไทยแลนด์", "3. Give It To Me (Timbaland) + Biser King", "4. เพลงชาติไทย"],
+        ans: [2]
+      },
+      // Line 67: SIX SEVEN!!!6️⃣7️⃣
+      {
+        q: "ข้อที่ 7: ใครคือผู้สร้างแชนแนลและแอนิเมชัน Skibidi Toilet ตัวจริง?",
+        c: ["1. จู", "2. DaFuq!?Boom!", "3. พี่โร", "4. Elon Musk"],
+        ans: [1],
+        media: "sakadung.mp4"
+      },
+      {
+        q: "ข้อที่ 8: หัวของพวก Skibidi Toilet โผล่ออกมาจากอะไร?",
+        c: ["1. ท่อน้ำทิ้ง", "2. ถังขยะเทศบาล", "3. จานข้าววัด", "4. ชักโครก"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 9: เผ่าแรกในฝั่งพันธมิตร (Alliance) ที่ปรากฏตัวมาต่อสู้กับชักโครกคือใคร?",
+        c: ["1. Cameraman (พวกหัวกล้อง)", "2. Speakerman (พวกหัวลำโพง)", "3. TV Man (พวกหัวทีวี)", "4. Toilet Paper Man"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 10: Titan ตัวไหนที่เคยโดน Skibidi Parasite ยึดร่าง (Infected) เป็นเวลานานที่สุด?",
+        c: ["1. Titan Cameraman", "2. Titan TV Man", "3. Titan Speakerman", "4. Titan จู"],
+        ans: [2]
+      },
+      {
+        q: "ข้อที่ 11: เสียงพูดของพวก TV Man เวลาปรากฏตัว มักจะเป็นเสียงแบบไหน?",
+        c: ["1. เสียงตดสังเคราะห์", "2. เสียงพูดถอยหลัง (Reverse Audio)", "3. เสียงกรี้ดของจู", "4. เสียงสวดมนต์"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 12: หัวหน้าใหญ่ของฝั่ง Skibidi Toilet ที่ใส่ชุดสูทและยิงเลเซอร์จากตาได้คือใคร?",
+        c: ["1. Scientist Toilet", "2. Flying Toilet", "3. จูกาก", "4. G-Toilet (G-Man Toilet)"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 13: วิธีกำจัด Skibidi Toilet แบบพื้นบ้านและเบสิกที่สุดคืออะไร?",
+        c: ["1. ทุบหัวมันด้วยกะละมัง", "2. เอานิ้วไปกดคันเลื่อนชักโครกข้างหลังมัน", "3. ฉีดน้ำยาเป็ดโปรใส่ตา", "4. ยื่นใบลาออก"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 14: Cameraman ตัวไหนที่มีบทเด่น ใส่ชุดสูทสีน้ำตาล และอกหักจาก TV Woman?",
+        c: ["1. Brown Cameraman (Simp Cameraman)", "2. Plungerman", "3. Dark Speakerman", "4. พี่โรกาก"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 15: ไม้ตายสุดโหดของ TV Woman เวลาโจมตีศัตรูคืออะไร?",
+        c: ["1. เตะเจาะยาง", "2. ถอดหน้าจอไปปาใส่", "3. ถอดหัวตัวเองพุ่งไปสวมศัตรูแล้วจุดไฟเผา", "4. ร้องเพลงใส่"],
+        ans: [2]
+      },
+      {
+        q: "ข้อที่ 16: ศัตรูพวกใหม่ที่สวมเกราะไฮเทค บินได้เร็วมาก และมาจากอวกาศคือพวกไหน?",
+        c: ["1. Mutant Toilets", "2. Astro Toilets", "3. Skibidi Spider", "4. ชักโครกบิน"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 17: Titan TV Man มีร่างอัปเกรดสุดเท่ที่มีลำโพงติดไหล่ มีฉายาเรียกว่าอะไร?",
+        c: ["1. RadioMan", "2. ComputerMan", "3. MicrowaveMan", "4. CinemaMan"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 18: นักวิทยาศาสตร์ฝั่ง Skibidi Toilet ที่คอยสร้างอาวุธและหุ่นเชิดคือใคร?",
+        c: ["1. Scientist Skibidi Toilet", "2. Doctor Toilet", "3. Professor Cameraman", "4. จูวิจัย"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 19: แสงสีอะไรของ TV Man ที่ปล่อยออกมาแล้วทำให้ Skibidi Toilet จิตตกจนต้องฆ่าตัวตาย?",
+        c: ["1. แสงสีชมพูฟรุ้งฟริ้ง", "2. แสงสีเขียวมะนาว", "3. แสงสีแดง (Red Light)", "4. แสงสว่างจ้าตาสว่าง"],
+        ans: [2]
+      },
+      {
+        q: "ข้อที่ 20: ตัวละครสุดเท่ฝั่ง Cameraman ที่ถือไม้ชักโครกคู่และใส่ชุดดำคือใคร?",
+        c: ["1. Ninja Camera", "2. Plungerman (Cameraman 54)", "3. Batman Camera", "4. พี่โรสายลุย"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 21: อาวุธคู่ใจประจำตัวของ Plungerman คืออะไร?",
+        c: ["1. ดาบเลเซอร์", "2. ปืนบาซูก้า", "3. ค้อนปอนด์", "4. ไม้ชักโครก (Plungers) สองอัน"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 22: ตัวประหลาดขนาดเล็กที่คอยเกาะคอพวก Cameraman เพื่อควบคุมสมองเรียกว่าอะไร?",
+        c: ["1. Skibidi Parasite", "2. Skibidi Ant", "3. Skibidi Flea", "4. หมอนวดชักโครก"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 23: คำว่า 'Skibidi' ในวงการเมมอินเทอร์เน็ตปัจจุบันถูกนำมาใช้แทนความหมายอะไร?",
+        c: ["1. คำอวยพรวันเกิด", "2. อาหารเย็นวันนี้", "3. ศัพท์สมองไหล (Brainrot) / สิ่งแปลกประหลาดปั่นๆ", "4. ชื่อพันธุ์ยุง"],
+        ans: [2]
+      },
+      {
+        q: "ข้อที่ 24: พวก Speakerman เวลาดีใจหรือชนะรบ มักจะทำพฤติกรรมอะไร?",
+        c: ["1. นั่งร้องไห้กอดเข่า", "2. เต้นท่ากวนๆ ตามจังหวะดนตรี", "3. นอนหลับปุ๋ย", "4. ไหว้สวยงาม"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 25: Titan Cameraman มีแหล่งพลังงานสุดอลังการตรงกลางอกเรียกว่าอะไร?",
+        c: ["1. แบตเตอรี่พาวเวอร์แบงก์", "2. ถ่าน AA สองก้อน", "3. หัวใจเต้นแรง", "4. Core Flame (เตาปฏิกรณ์ที่อก)"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 26: Agent หญิงคนแรกของฝั่ง Cameraman คือใคร?",
+        c: ["1. Camerawoman", "2. Speakerwoman", "3. TV Woman", "4. Skibidi Girl"],
+        ans: [0]
+      },
+      {
+        q: "ข้อที่ 27: เวลา TV Man พูด แสดงอารมณ์บนหน้าจอ มักจะขึ้นเป็นอะไร?",
+        c: ["1. ข้อความซับไทย", "2. โลโก้ช่อง 7", "3. สัญลักษณ์อีโมจิ ASCII (เช่น >:), :D, T_T)", "4. หน้าจอดับ"],
+        ans: [2]
+      },
+      {
+        q: "ข้อที่ 28: ถ้ามึงเจอ Skibidi Toilet วิ่งกระโดดเข้าหาในชีวิตจริง มึงต้องทำยังไงเป็นอันดับแรก?",
+        c: ["1. ยิ้มหวานให้มัน", "2. เอานิ้วพุ่งไปกดชักโครกมันให้ไวที่สุด!", "3. ร้องเพลง Skibidi สวนกลับ", "4. วิ่งไปหาจู"],
+        ans: [1]
+      },
+      {
+        q: "ข้อที่ 29: ข้อใดคือสโลแกนประจำใจของเหล่าสาวก Skibidi Toilet ตัวจริง?",
+        c: ["1. กินข้าวแล้วหรือยัง", "2. ขอสองตัวตรงๆ", "3. ฝันดีครับพี่", "4. SKIBIDI DOP DOP DOP YES YES!"],
+        ans: [3]
+      },
+      {
+        q: "ข้อที่ 30: สรุปแล้วใครคือคนที่ปั่น Skibidi และทรงภูมิปัญญาที่สุดในสามโลก?",
+        c: ["1. กูคนเล่นนี่แหละ โคตรเทพ! 555+", "2. จูผู้กากกา", "3. พี่โรคนเดิม", "4. ถูกทุกข้อไปเลยมึง!"],
+        ans: [0, 1, 2, 3]
+      }
+    ];
+
+    let currentQ = 0;
+
+    function loadQuestion() {
+      if (currentQ >= questions.length) {
+        showResultAndFredbear();
+        return;
+      }
+      const q = questions[currentQ];
+      document.getElementById('progress-text').innerText = `ข้อที่ ${currentQ + 1} / ${questions.length}`;
+      document.getElementById('question-text').innerText = q.q;
+      
+      const mediaBox = document.getElementById('media-box');
+      if (q.media) {
+        mediaBox.innerHTML = `<video id="sakadung-video" src="${q.media}" autoplay loop playsinline style="width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 2px solid #ff0055;"></video>`;
+        setTimeout(() => {
+          const sVid = document.getElementById('sakadung-video');
+          if (sVid) {
+            sVid.muted = false;
+            sVid.volume = 1.0;
+            sVid.play().catch(err => console.log("Sakadung play error:", err));
+          }
+        }, 100);
+      } else {
+        mediaBox.innerHTML = '';
+      }
+
+      const choicesBox = document.getElementById('choices-box');
+      choicesBox.innerHTML = '';
+
+      q.c.forEach((choice, index) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-choice';
+        btn.innerText = choice;
+        btn.onclick = () => selectAnswer(index);
+        choicesBox.appendChild(btn);
+      });
+    }
+
+    function selectAnswer(index) {
+      const q = questions[currentQ];
+
+      if (!q.ans.includes(index)) {
+        triggerWrongJumpscare();
+        return;
+      }
+
+      if (q.jumpscare) {
+        triggerJumpscare(() => {
+          currentQ++;
+          loadQuestion();
+        });
+      } else {
+        currentQ++;
+        loadQuestion();
+      }
+    }
+
+    function triggerWrongJumpscare() {
+      const jsElem = document.getElementById('jumpscare');
+      const video = document.getElementById('foxy-video');
+      
+      jsElem.style.display = 'flex';
+      video.currentTime = 0;
+      video.muted = false;
+      video.volume = 1.0;
+      
+      video.play().catch(err => console.log(err));
+
+      video.onended = () => {
+        jsElem.style.display = 'none';
+        document.getElementById('wrong-popup').style.display = 'flex';
+      };
+
+      setTimeout(() => {
+        if (jsElem.style.display !== 'none') {
+          jsElem.style.display = 'none';
+          video.pause();
+          document.getElementById('wrong-popup').style.display = 'flex';
+        }
+      }, 4000);
+    }
+
+    function closeWrongPopup() {
+      document.getElementById('wrong-popup').style.display = 'none';
+    }
+
+    function triggerJumpscare(callback) {
+      const jsElem = document.getElementById('jumpscare');
+      const video = document.getElementById('foxy-video');
+      
+      jsElem.style.display = 'flex';
+      video.currentTime = 0;
+      video.muted = false;
+      video.volume = 1.0;
+
+      video.play().catch(err => console.log(err));
+
+      video.onended = () => {
+        jsElem.style.display = 'none';
+        callback();
+      };
+
+      setTimeout(() => {
+        if (jsElem.style.display !== 'none') {
+          jsElem.style.display = 'none';
+          video.pause();
+          callback();
+        }
+      }, 4000);
+    }
+
+    function showResultAndFredbear() {
+      document.getElementById('quiz-box').style.display = 'none';
+      document.getElementById('progress-text').style.display = 'none';
+      document.getElementById('media-box').style.display = 'none';
+      
+      const fbScreen = document.getElementById('fredbear-screen');
+      const fbVideo = document.getElementById('fredbear-video');
+      
+      fbScreen.style.display = 'flex';
+      fbVideo.currentTime = 0;
+      fbVideo.muted = false;
+      fbVideo.volume = 1.0;
+      
+      fbVideo.onended = () => {
+        kickPlayerOut();
+      };
+
+      fbVideo.play().catch(err => {
+        console.log("Fredbear error:", err);
+        kickPlayerOut();
+      });
+    }
+
+    function kickPlayerOut() {
+      window.close();
+      window.location.href = "about:blank";
+    }
+
+    loadQuestion();
+  </script>
+</body>
+</html>
